@@ -7,10 +7,8 @@ homepage: https://pub.dev/packages/duo_flex
 topics:
   - foldable
   - dual-screen
-  - duos
   - responsive
   - adaptive-layout
-  - ios
   - flutter-plugin
 
 environment:
