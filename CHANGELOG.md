@@ -1,3 +1,7 @@
+## 0.1.1
+
+* Show the device dashboard in the pub.dev screenshots gallery.
+
 ## 0.1.0
 
 * Add typed APIs for iOS device, screen, display, and reserved-region data.
