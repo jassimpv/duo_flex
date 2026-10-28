@@ -2,7 +2,7 @@ name: duo_flex
 description: >-
   Read web, Android and iOS display geometry, safe areas and fold data, and build
   responsive Flutter layouts from available space.
-version: 0.3.0
+version: 0.3.1
 homepage: https://pub.dev/packages/duo_flex
 topics:
   - foldable
@@ -12,7 +12,7 @@ topics:
   - flutter-plugin
 screenshots:
   - description: DuoFlex dashboard showing device, display, hinge, and layout data.
-    path: assets/duo_flex_device_dashboard.png
+    path: assets/duo_flex_pubdev_screenshot.jpg
   - description: Animated DuoFlex dashboard showing fold state, hinge angle, and live viewport data.
     path: assets/duo_flex_device_video.gif
 

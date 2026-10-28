@@ -1,3 +1,7 @@
+## 0.3.1
+
+* Use an optimized JPEG for the pub.dev package screenshot thumbnail.
+
 ## 0.3.0
 
 * Add a web implementation for viewport geometry and resize events.
