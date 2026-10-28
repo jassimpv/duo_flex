@@ -1,7 +1,7 @@
 # duo_flex
 
-`duo_flex` is an iOS Flutter plugin for reading application-window geometry,
-display regions, and fold data exposed by public UIKit APIs. Its adaptive
+`duo_flex` is a Flutter plugin for reading application-window geometry,
+display regions, and fold data exposed by public platform APIs. Its adaptive
 widgets use Flutter constraints and work on ordinary phones and other Flutter
 platforms. Unsupported native fold data stays unknown or unavailable; the
 plugin never infers hardware state from a device name, screen size, or angle.
@@ -14,20 +14,25 @@ Add `duo_flex` to your app:
 flutter pub add duo_flex
 ```
 
-The plugin's native implementation targets iOS 15 and later. Window and device
-information work on ordinary iPhones. Native hinge angle, posture, and reserved
-division regions require iOS 27.1 or later and a Flutter view for which UIKit
-reports those features. The adaptive Flutter widgets work on any supported
-Flutter platform, including when native fold data is unavailable.
+The native implementations target iOS 15 and Android API 23 and later. Window
+and device information work on ordinary phones. Android fold posture and hinge
+bounds are reported when AndroidX Window detects a folding feature on Android
+10 or later. Android hinge angle is read separately from
+`Sensor.TYPE_HINGE_ANGLE` on Android 11 and later when the device exposes it.
+On iOS, native hinge angle, posture, and reserved division regions require iOS
+27.1 or later and a Flutter view for which UIKit reports those features. The adaptive
+Flutter widgets work on any supported Flutter platform.
 
 The package requires Dart 3.13.2 and Flutter 3.47.2 or later.
 
 ## Example
 
 The example app shows native device and hinge readings alongside viewport and
-safe-area data:
+safe-area data on iOS and Android:
 
-![DuoFlex device dashboard](assets/duo_flex_device_dashboard.png)
+| iOS | Android |
+| --- | --- |
+| ![DuoFlex dashboard on iOS](assets/duo_flex_device_dashboard.png) | ![DuoFlex dashboard on Android](assets/android.png) |
 
 ```dart
 import 'package:duo_flex/duo_flex.dart';
@@ -44,7 +49,8 @@ Future<void> readDisplay() async {
 }
 ```
 
-On iOS, device values come from `UIDevice`; window dimensions, scale,
+On iOS, device values come from `UIDevice`; on Android, they come from Android
+system properties. Window dimensions, scale,
 orientation, and safe-area insets come from the Flutter view and its attached
 window. Measurements use UIKit points, which correspond to Flutter logical
 pixels. The display snapshot reports physical screen bounds separately from
@@ -206,11 +212,19 @@ of being replaced with simulated hardware data.
 | Platform | Native display and fold API | Adaptive widgets |
 | --- | --- | --- |
 | iOS 15+ | Device and window data; fold features only when public UIKit APIs report them (iOS 27.1+) | Supported |
+| Android API 23+ | Device and window data; folding feature bounds and flat / half-open state on Android 10+ when AndroidX Window reports them; hinge angle on Android 11+ when the device exposes the sensor | Supported |
 | Other Flutter platforms | Native data API is unsupported unless an implementation is registered | Supported |
 
-The plugin does not provide Android fold sensor support. Use the layout widgets
-for responsive UI on other platforms; native methods return an unsupported
-error where a platform implementation is not available.
+Android fold data is limited to the bounds and state exposed by AndroidX
+Window. Android reports `tabletop` for a horizontal half-open feature and
+`book` for a vertical half-open feature. Hinge angle comes from the separate
+Android hinge-angle sensor; the event stream filters changes below 0.3° and
+converts sensor degrees to radians. A missing sensor or readings leaves the
+angle unavailable. A missing folding feature means Android has not reported
+fold geometry; it does not establish that the device is not foldable. Some
+device or OS failures may prevent Android from delivering fold state. Use the
+layout widgets for responsive UI on other platforms; native methods return an
+unsupported error where a platform implementation is not available.
 
 ## License
 

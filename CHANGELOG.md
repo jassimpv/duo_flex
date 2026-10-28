@@ -1,3 +1,12 @@
+## 0.2.0
+
+* Add Android support for device, app-window, display-region, and fold data.
+* Read Android hinge angle from `Sensor.TYPE_HINGE_ANGLE` when available,
+  reporting radians and filtering sensor noise while the event stream is active.
+* Report Android `book` and `tabletop` postures from folding-feature orientation.
+* Add `DuoFoldPosture.book` for vertical half-open fold configurations.
+* Keep unavailable Android fold sensors and posture data nullable or unknown.
+
 ## 0.1.2
 
 * Add the animated device dashboard to the pub.dev screenshots gallery.

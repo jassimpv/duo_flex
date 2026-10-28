@@ -319,10 +319,10 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
 
   Widget _deviceSummaryCard() {
     final foldability = _device?.isFoldable == true
-        ? 'Foldable reported'
+        ? 'Foldable detected'
         : _device?.isFoldable == false
-        ? 'No hinge reported'
-        : 'Foldability unknown';
+        ? 'No fold feature reported'
+        : 'Fold state unavailable';
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -348,7 +348,7 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '${_device?.systemName ?? 'iOS'} ${_device?.systemVersion ?? ''} · $foldability',
+                    '${_device?.systemName ?? 'Unknown OS'} ${_device?.systemVersion ?? ''} · $foldability',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -426,7 +426,7 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
             ),
             const SizedBox(height: 8),
             Text(
-              'UIKit window insets in logical points. Use MediaQuery for Flutter layout padding.',
+              'Native window insets in logical pixels. Use MediaQuery for Flutter layout padding.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -620,12 +620,25 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
   }
 
   Widget _foldShapeCard() {
-    final supported = _capabilities?.supportsHingeAngle == true;
-    final radians = supported ? _hingeAngleRadians : null;
+    final radians = _capabilities?.supportsHingeAngle == true
+        ? _hingeAngleRadians
+        : null;
     final degrees = radians == null ? null : radians * 180 / math.pi;
     final posture = _capabilities?.supportsFoldPosture == true
         ? _posture.name
         : 'unavailable';
+    final foldRegion = _display?.regions
+        .where(
+          (region) =>
+              region.type == DuoDisplayRegionType.hingeExclusion ||
+              region.type == DuoDisplayRegionType.reservedDivision,
+        )
+        .firstOrNull;
+    final windowRegion = _display?.regions
+        .where(
+          (region) => region.type == DuoDisplayRegionType.applicationWindow,
+        )
+        .firstOrNull;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -642,7 +655,21 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
             SizedBox(
               height: 46,
               width: double.infinity,
-              child: degrees == null
+              child: foldRegion != null
+                  ? CustomPaint(
+                      painter: _NativeFoldRegionPainter(
+                        x: foldRegion.x,
+                        y: foldRegion.y,
+                        width: foldRegion.width,
+                        height: foldRegion.height,
+                        displayX: windowRegion?.x ?? 0,
+                        displayY: windowRegion?.y ?? 0,
+                        displayWidth: windowRegion?.width ?? 0,
+                        displayHeight: windowRegion?.height ?? 0,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    )
+                  : degrees == null
                   ? Center(
                       child: Text(
                         'Fold shape unavailable',
@@ -1079,4 +1106,85 @@ class _NativeFoldShapePainter extends CustomPainter {
   @override
   bool shouldRepaint(_NativeFoldShapePainter oldDelegate) =>
       oldDelegate.angleDegrees != angleDegrees || oldDelegate.color != color;
+}
+
+class _NativeFoldRegionPainter extends CustomPainter {
+  const _NativeFoldRegionPainter({
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+    required this.displayX,
+    required this.displayY,
+    required this.displayWidth,
+    required this.displayHeight,
+    required this.color,
+  });
+
+  final double x;
+  final double y;
+  final double width;
+  final double height;
+  final double displayX;
+  final double displayY;
+  final double displayWidth;
+  final double displayHeight;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (displayWidth <= 0 || displayHeight <= 0) return;
+    final displayRect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final scale = math.min(
+      size.width / displayWidth,
+      size.height / displayHeight,
+    );
+    final fittedWidth = displayWidth * scale;
+    final fittedHeight = displayHeight * scale;
+    final left = (size.width - fittedWidth) / 2;
+    final top = (size.height - fittedHeight) / 2;
+    final bounds = Rect.fromLTWH(
+      left + (x - displayX) * scale,
+      top + (y - displayY) * scale,
+      math.max(width * scale, 4),
+      math.max(height * scale, 4),
+    );
+    final devicePaint = Paint()
+      ..color = color.withValues(alpha: 0.12)
+      ..style = PaintingStyle.fill;
+    final featurePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    final borderPaint = Paint()
+      ..color = color.withValues(alpha: 0.65)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        displayRect.deflate(4),
+        const Radius.circular(12),
+      ),
+      devicePaint,
+    );
+    canvas.drawRect(bounds, featurePaint);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        displayRect.deflate(4),
+        const Radius.circular(12),
+      ),
+      borderPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_NativeFoldRegionPainter oldDelegate) =>
+      oldDelegate.x != x ||
+      oldDelegate.y != y ||
+      oldDelegate.width != width ||
+      oldDelegate.height != height ||
+      oldDelegate.displayX != displayX ||
+      oldDelegate.displayY != displayY ||
+      oldDelegate.displayWidth != displayWidth ||
+      oldDelegate.displayHeight != displayHeight ||
+      oldDelegate.color != color;
 }
