@@ -1,3 +1,7 @@
+## 0.3.2
+
+* Document Samsung Galaxy Z foldable support through AndroidX WindowManager.
+
 ## 0.3.1
 
 * Use an optimized JPEG for the pub.dev package screenshot thumbnail.
