@@ -1,15 +1,15 @@
 name: duo_flex
 description: >-
-  Read web, Android and iOS display geometry, safe areas and fold data, and build
-  responsive Flutter layouts from available space.
-version: 0.3.2
+  Flutter plugin for iPhone Duo and foldable devices: read hinge angle, posture,
+  display regions and window geometry, and build adaptive layouts.
+version: 0.3.3
 homepage: https://pub.dev/packages/duo_flex
 topics:
   - foldable
+  - iphone-duo
   - dual-screen
   - responsive
   - adaptive-layout
-  - flutter-plugin
 screenshots:
   - description: DuoFlex dashboard showing device, display, hinge, and layout data.
     path: assets/duo_flex_pubdev_screenshot.jpg

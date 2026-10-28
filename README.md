@@ -1,10 +1,11 @@
 # duo_flex
 
-`duo_flex` is a Flutter plugin for reading application-window geometry,
-display regions, and fold data exposed by public platform APIs. Its adaptive
-widgets use Flutter constraints and work on ordinary phones and other Flutter
-platforms. Unsupported native fold data stays unknown or unavailable; the
-plugin never infers hardware state from a device name, screen size, or angle.
+`duo_flex` is a Flutter plugin for **iPhone Duo, foldable phones, and adaptive
+Flutter layouts**. It reads hinge angle, fold posture, display regions,
+application-window geometry, and safe-area data when the platform exposes
+them. Its responsive widgets also work on ordinary phones and other screen
+sizes. Unsupported fold data stays unknown or unavailable; DuoFlex never
+guesses hardware state from a device name, screen size, or angle.
 
 ## Install
 
@@ -14,14 +15,13 @@ Add `duo_flex` to your app:
 flutter pub add duo_flex
 ```
 
-The native implementations target iOS 15 and Android API 23 and later. Window
-and device information work on ordinary phones. Android fold posture and hinge
-bounds are reported when AndroidX Window detects a folding feature on Android
-10 or later. Android hinge angle is read separately from
-`Sensor.TYPE_HINGE_ANGLE` on Android 11 and later when the device exposes it.
-On iOS, native hinge angle, posture, and reserved division regions require iOS
-27.1 or later and a Flutter view for which UIKit reports those features. The adaptive
-Flutter widgets work on any supported Flutter platform.
+The native implementations target iOS 15 and Android API 23 and later. On
+iPhone Duo, UIKit fold data requires iOS 27.1 or later and an active Flutter
+view that reports a hinge. Android fold posture and hinge bounds are reported
+when AndroidX Window detects a folding feature on Android 10 or later; hinge
+angle is read separately from `Sensor.TYPE_HINGE_ANGLE` on Android 11 or later
+when the device exposes it. The adaptive Flutter widgets work on all
+supported Flutter platforms.
 
 The package requires Dart 3.13.2 and Flutter 3.47.2 or later.
 
@@ -76,7 +76,12 @@ point-in-time calls return the safe nullable/unknown values.
 Malformed events, missing plugin registration, and operational failures remain
 errors. Multiple Dart listeners share the cached broadcast event stream.
 
-## Apple API availability
+## iPhone Duo and Apple API availability
+
+For iPhone Duo, DuoFlex reads the hinge angle, posture, and reserved display
+regions directly from public UIKit APIs when the active Flutter view receives
+that fold data. The same iOS implementation safely reports unavailable values
+on devices or OS versions that do not expose a hinge.
 
 The implementation is compiled against the installed public iOS 27.1 SDK and
 uses runtime availability checks. Apple documents `UIHingeInteraction` and
@@ -211,7 +216,7 @@ of being replaced with simulated hardware data.
 
 | Platform | Display and fold data | Adaptive widgets |
 | --- | --- | --- |
-| iOS 15+ | Device and window data; fold features only when public UIKit APIs report them (iOS 27.1+) | Supported |
+| iOS 15+ | Device and window data; iPhone Duo hinge, posture, and fold regions when UIKit reports them (iOS 27.1+) | Supported |
 | Android API 23+ | Device and window data; folding feature bounds and flat / half-open state on Android 10+ when AndroidX Window reports them, including Samsung Galaxy Z foldables; hinge angle on Android 11+ when the device exposes the sensor | Supported |
 | Web | Browser viewport and resize data; `continuous` / `folded` posture when the experimental Device Posture API is available | Supported |
 | Other Flutter platforms | Native data API is unsupported unless an implementation is registered | Supported |

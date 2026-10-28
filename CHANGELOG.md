@@ -1,3 +1,8 @@
+## 0.3.3
+
+* Improve pub.dev search metadata and README wording for iPhone Duo and
+  foldable Flutter apps.
+
 ## 0.3.2
 
 * Document Samsung Galaxy Z foldable support through AndroidX WindowManager.
