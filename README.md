@@ -212,7 +212,7 @@ of being replaced with simulated hardware data.
 | Platform | Display and fold data | Adaptive widgets |
 | --- | --- | --- |
 | iOS 15+ | Device and window data; fold features only when public UIKit APIs report them (iOS 27.1+) | Supported |
-| Android API 23+ | Device and window data; folding feature bounds and flat / half-open state on Android 10+ when AndroidX Window reports them; hinge angle on Android 11+ when the device exposes the sensor | Supported |
+| Android API 23+ | Device and window data; folding feature bounds and flat / half-open state on Android 10+ when AndroidX Window reports them, including Samsung Galaxy Z foldables; hinge angle on Android 11+ when the device exposes the sensor | Supported |
 | Web | Browser viewport and resize data; `continuous` / `folded` posture when the experimental Device Posture API is available | Supported |
 | Other Flutter platforms | Native data API is unsupported unless an implementation is registered | Supported |
 
@@ -226,6 +226,12 @@ fold geometry; it does not establish that the device is not foldable. Some
 device or OS failures may prevent Android from delivering fold state. Use the
 layout widgets for responsive UI on other platforms; native methods return an
 unsupported error where a platform implementation is not available.
+
+Samsung Galaxy Z Fold and Z Flip devices use this same AndroidX Window path.
+The reported fold orientation distinguishes book layouts from Flex Mode; DuoFlex
+does not need Samsung-only APIs for these postures. See Samsung's [foldables and
+large-screen guidance](https://developer.samsung.com/foldables-and-largescreens)
+and [Flex Mode codelab](https://developer.samsung.com/codelab/galaxy-z/flex-mode.html).
 
 On web, hinge angle and fold geometry are unavailable. The Device Posture API
 only reports `continuous` or `folded`; `continuous` also describes non-foldable
