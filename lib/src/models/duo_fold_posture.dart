@@ -1,5 +1,16 @@
 /// Fold configuration reported by a platform, when publicly available.
-enum DuoFoldPosture { unknown, closed, partiallyOpen, halfOpen, fullyOpen, tabletop, book, tent }
+enum DuoFoldPosture {
+  unknown,
+  closed,
+  partiallyOpen,
+  halfOpen,
+  fullyOpen,
+  tabletop,
+  book,
+  tent,
+  continuous,
+  folded,
+}
 
 /// Converts a platform posture string without throwing for unknown values.
 DuoFoldPosture fromNativePosture(String? value) {

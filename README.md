@@ -209,10 +209,11 @@ of being replaced with simulated hardware data.
 
 ## Platform support
 
-| Platform | Native display and fold API | Adaptive widgets |
+| Platform | Display and fold data | Adaptive widgets |
 | --- | --- | --- |
 | iOS 15+ | Device and window data; fold features only when public UIKit APIs report them (iOS 27.1+) | Supported |
 | Android API 23+ | Device and window data; folding feature bounds and flat / half-open state on Android 10+ when AndroidX Window reports them; hinge angle on Android 11+ when the device exposes the sensor | Supported |
+| Web | Browser viewport and resize data; `continuous` / `folded` posture when the experimental Device Posture API is available | Supported |
 | Other Flutter platforms | Native data API is unsupported unless an implementation is registered | Supported |
 
 Android fold data is limited to the bounds and state exposed by AndroidX
@@ -225,6 +226,11 @@ fold geometry; it does not establish that the device is not foldable. Some
 device or OS failures may prevent Android from delivering fold state. Use the
 layout widgets for responsive UI on other platforms; native methods return an
 unsupported error where a platform implementation is not available.
+
+On web, hinge angle and fold geometry are unavailable. The Device Posture API
+only reports `continuous` or `folded`; `continuous` also describes non-foldable
+devices, so DuoFlex does not infer foldability from it. Browser support is
+limited; check the [MDN compatibility notes](https://developer.mozilla.org/en-US/docs/Web/API/Device_Posture_API#browser_compatibility).
 
 ## License
 

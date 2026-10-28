@@ -74,6 +74,8 @@ class DuoFoldAwareLayout extends StatelessWidget {
       DuoFoldPosture.tabletop => tabletopLayout ?? defaultLayout,
       DuoFoldPosture.book => defaultLayout,
       DuoFoldPosture.tent => tentLayout ?? defaultLayout,
+      DuoFoldPosture.continuous => defaultLayout,
+      DuoFoldPosture.folded => defaultLayout,
       DuoFoldPosture.unknown => defaultLayout,
     };
   }

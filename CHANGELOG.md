@@ -1,3 +1,10 @@
+## 0.3.0
+
+* Add a web implementation for viewport geometry and resize events.
+* Read `continuous` and `folded` states from the experimental Device Posture API
+  when the browser supports it.
+* Keep hinge angle, safe-area measurements, and fold geometry unavailable on web.
+
 ## 0.2.1
 
 * Fix README screenshot links so images load on pub.dev.
