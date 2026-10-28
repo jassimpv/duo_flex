@@ -2,7 +2,7 @@ name: duo_flex
 description: >-
   Read iOS display geometry, safe areas, fold posture and hinge angle, and build
   responsive Flutter layouts from available space.
-version: 0.1.1
+version: 0.1.2
 homepage: https://pub.dev/packages/duo_flex
 topics:
   - foldable
@@ -13,6 +13,8 @@ topics:
 screenshots:
   - description: DuoFlex dashboard showing device, display, hinge, and layout data.
     path: assets/duo_flex_device_dashboard.png
+  - description: Animated DuoFlex dashboard showing fold state, hinge angle, and live viewport data.
+    path: assets/duo_flex_device_video.gif
 
 environment:
   sdk: ^3.13.2

@@ -1,3 +1,7 @@
+## 0.1.2
+
+* Add the animated device dashboard to the pub.dev screenshots gallery.
+
 ## 0.1.1
 
 * Show the device dashboard in the pub.dev screenshots gallery.
