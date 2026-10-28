@@ -1,8 +1,8 @@
 name: duo_flex
 description: >-
-  Read web, Android and iOS display geometry, safe areas and fold data, and build
-  responsive Flutter layouts from available space.
-version: 0.3.1
+  Read HarmonyOS, web, Android and iOS display geometry, safe areas and fold
+  data, and build responsive Flutter layouts from available space.
+version: 0.4.0
 homepage: https://pub.dev/packages/duo_flex
 topics:
   - foldable
@@ -44,3 +44,5 @@ flutter:
       web:
         pluginClass: DuoFlexWeb
         fileName: src/web/duo_flex_web.dart
+      ohos:
+        pluginClass: DuoFlexPlugin

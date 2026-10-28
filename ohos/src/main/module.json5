@@ -1,0 +1,10 @@
+{
+  "module": {
+    "name": "duo_flex",
+    "type": "har",
+    "description": "DuoFlex native fold status and crease-region support.",
+    "deviceTypes": ["phone", "tablet", "2in1"],
+    "deliveryWithInstall": true,
+    "installationFree": false
+  }
+}

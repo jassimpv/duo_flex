@@ -1,3 +1,10 @@
+## 0.4.0
+
+* Add a HarmonyOS NEXT (OHOS) implementation for native fold status, fold
+  posture updates, and fold-crease display regions.
+* Keep hinge angle, Flutter window geometry, and safe-area insets unavailable
+  where HarmonyOS does not expose them through this plugin.
+
 ## 0.3.1
 
 * Use an optimized JPEG for the pub.dev package screenshot thumbnail.

@@ -1,0 +1,11 @@
+{
+  "name": "duo_flex",
+  "version": "0.4.0",
+  "description": "DuoFlex HarmonyOS fold and display data plugin.",
+  "main": "index.ets",
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@ohos/flutter_ohos": "file:libs/flutter.har"
+  }
+}

@@ -14,14 +14,16 @@ Add `duo_flex` to your app:
 flutter pub add duo_flex
 ```
 
-The native implementations target iOS 15 and Android API 23 and later. Window
-and device information work on ordinary phones. Android fold posture and hinge
-bounds are reported when AndroidX Window detects a folding feature on Android
-10 or later. Android hinge angle is read separately from
+The native implementations target iOS 15 and Android API 23 and later. A
+HarmonyOS NEXT target reads native fold status and crease regions through
+ArkTS display APIs and requires a Flutter HarmonyOS toolchain with OHOS plugin
+support. Window and device information work on ordinary phones. Android fold
+posture and hinge bounds are reported when AndroidX Window detects a folding
+feature on Android 10 or later. Android hinge angle is read separately from
 `Sensor.TYPE_HINGE_ANGLE` on Android 11 and later when the device exposes it.
 On iOS, native hinge angle, posture, and reserved division regions require iOS
-27.1 or later and a Flutter view for which UIKit reports those features. The adaptive
-Flutter widgets work on any supported Flutter platform.
+27.1 or later and a Flutter view for which UIKit reports those features. The
+adaptive Flutter widgets work on any supported Flutter platform.
 
 The package requires Dart 3.13.2 and Flutter 3.47.2 or later.
 
@@ -214,6 +216,7 @@ of being replaced with simulated hardware data.
 | iOS 15+ | Device and window data; fold features only when public UIKit APIs report them (iOS 27.1+) | Supported |
 | Android API 23+ | Device and window data; folding feature bounds and flat / half-open state on Android 10+ when AndroidX Window reports them; hinge angle on Android 11+ when the device exposes the sensor | Supported |
 | Web | Browser viewport and resize data; `continuous` / `folded` posture when the experimental Device Posture API is available | Supported |
+| HarmonyOS NEXT (OHOS) | Native fold status and crease regions when HarmonyOS reports them; hinge angle and Flutter window safe-area data are unavailable | Supported |
 | Other Flutter platforms | Native data API is unsupported unless an implementation is registered | Supported |
 
 Android fold data is limited to the bounds and state exposed by AndroidX
@@ -231,6 +234,14 @@ On web, hinge angle and fold geometry are unavailable. The Device Posture API
 only reports `continuous` or `folded`; `continuous` also describes non-foldable
 devices, so DuoFlex does not infer foldability from it. Browser support is
 limited; check the [MDN compatibility notes](https://developer.mozilla.org/en-US/docs/Web/API/Device_Posture_API#browser_compatibility).
+
+On HarmonyOS NEXT, DuoFlex uses the [native fold-status and crease-region
+APIs](https://developer.huawei.com/consumer/cn/forum/topic/0208216578807303640).
+Expanded, folded, and half-folded statuses map to `fullyOpen`, `closed`, and
+`halfOpen`. The half-folded status alone does not distinguish tabletop from
+tent posture. Crease rectangles are exposed as native display regions when
+available; hinge angle, Flutter-view geometry, and safe-area insets remain
+unavailable.
 
 ## License
 
