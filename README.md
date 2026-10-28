@@ -32,7 +32,7 @@ safe-area data on iOS and Android:
 
 | iOS | Android |
 | --- | --- |
-| ![DuoFlex dashboard on iOS](assets/duo_flex_device_dashboard.png) | ![DuoFlex dashboard on Android](assets/android.png) |
+| ![DuoFlex dashboard on iOS](https://raw.githubusercontent.com/jassimpv/duo_flex/main/assets/duo_flex_device_dashboard.png) | ![DuoFlex dashboard on Android](https://raw.githubusercontent.com/jassimpv/duo_flex/main/assets/android.png) |
 
 ```dart
 import 'package:duo_flex/duo_flex.dart';

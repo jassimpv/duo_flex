@@ -1,3 +1,7 @@
+## 0.2.1
+
+* Fix README screenshot links so images load on pub.dev.
+
 ## 0.2.0
 
 * Add Android support for device, app-window, display-region, and fold data.

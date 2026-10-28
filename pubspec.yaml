@@ -2,7 +2,7 @@ name: duo_flex
 description: >-
   Read Android and iOS display geometry, safe areas and fold data, and build
   responsive Flutter layouts from available space.
-version: 0.2.0
+version: 0.2.1
 homepage: https://pub.dev/packages/duo_flex
 topics:
   - foldable
