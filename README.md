@@ -167,7 +167,8 @@ already applied its own safe-area adjustments; do not add the native
 `DuoScreenInfo.safeArea` on top of `MediaQuery.padding`. Neither API fabricates
 hinge geometry.
 
-`DuoFoldBuilder` checks `DuoCapabilities` once when mounted and subscribes only
+`DuoFoldBuilder` checks `DuoCapabilities` when mounted, refreshes them on display
+changes, and subscribes only
 to supported hinge and posture streams. It preserves a missing hinge angle as
 `null`, and missing posture as `DuoFoldPosture.unknown`. Loading, unsupported,
 and error UI can be customized with `loadingBuilder`, `unsupportedBuilder`,
@@ -246,3 +247,21 @@ limited; check the [MDN compatibility notes](https://developer.mozilla.org/en-US
 ## License
 
 This package is available under the [MIT License](LICENSE).
+
+### Additional layout and fold behavior
+
+`DuoAdaptiveLayout` and `DuoScreenBuilder` accept `fallbackSize` for unbounded
+axes. Supply the containing pane's size inside horizontal scroll views rather
+than falling back to the full view. Finite local constraints still take
+precedence. `DuoScreenLayoutInfo.localOrientation` derives orientation from
+local dimensions; `orientation` continues to describe the full Flutter view.
+
+Fold builders read initial snapshots for listeners joining an existing broadcast
+stream, preserve newer events while snapshots are pending, and recover a stream's
+error when that stream emits valid data again. `DuoFoldAwareLayout` also accepts
+`bookLayout`, `continuousLayout`, and `foldedLayout`. `DuoFoldState.copyWith`
+preserves an omitted angle and clears it when `hingeAngle: null` is explicit.
+
+On iOS, point-in-time fold queries return unavailable/unknown data for inactive
+views or if UIKit does not supply an initial update within three seconds.
+Live subscriptions can still receive later hardware updates.

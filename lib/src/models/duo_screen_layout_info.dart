@@ -32,6 +32,10 @@ class DuoScreenLayoutInfo {
   /// Orientation of the current Flutter view.
   final Orientation orientation;
 
+  /// Orientation derived from the local dimensions, independent of the view.
+  Orientation get localOrientation =>
+      width > height ? Orientation.landscape : Orientation.portrait;
+
   /// System intrusions, including physical cutouts, in logical pixels.
   final EdgeInsets viewPadding;
 

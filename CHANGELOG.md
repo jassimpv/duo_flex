@@ -1,3 +1,22 @@
+## 0.4.0
+
+* Let example metric cards grow with their content to avoid overflow for long
+  orientation values and larger text sizes.
+* Make the example Adaptive UI tab easier to explore with live/preview layout
+  choices, visual diagrams, expandable measurements, and plain-language fold
+  explanations.
+* Refresh fold capabilities on display changes, seed late fold listeners from
+  snapshots, and recover individual stream errors after valid updates.
+* Add book, continuous, and folded layout callbacks and nullable angle clearing.
+* Fix Android sensor cleanup, engine-specific view selection, geometry updates,
+  and pre-Android 11 safe-area handling without keyboard insets.
+* Complete UIKit snapshot requests with unknown data when the view is inactive
+  or no update arrives within three seconds.
+* Replay current UIKit fold readings to new native listeners and refresh reserved
+  regions on layout callbacks even when view dimensions have not changed.
+* Normalize Android display regions to the Flutter view and clip fold bounds.
+* Add explicit unbounded-axis fallback sizes and local viewport orientation.
+
 ## 0.3.3
 
 * Improve pub.dev search metadata and README wording for iPhone Duo and

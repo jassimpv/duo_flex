@@ -142,7 +142,8 @@ final class DuoScreenManager {
           controller.isViewLoaded,
           let view = controller.view else { return }
     let current = geometrySnapshot(for: view)
-    guard current != lastGeometry else { return }
+    // Reserved regions can change without changing bounds or safe-area insets.
+    // Event handlers deduplicate the complete screen/display payloads.
     lastGeometry = current
     onGeometryChange?()
   }

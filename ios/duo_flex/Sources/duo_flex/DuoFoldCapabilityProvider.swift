@@ -44,6 +44,7 @@ final class UIKitDuoFoldCapabilityProvider: DuoFoldCapabilityProvider {
   private var viewController: UIViewController? { viewControllerProvider() }
   private var interaction: UIHingeInteraction?
   private var pendingRequests: [(DuoFoldSnapshot) -> Void] = []
+  private var snapshotTimeout: DispatchWorkItem?
   private var hingeSink: FlutterEventSink?
   private var postureSink: FlutterEventSink?
   private var stateChangeHandler: (() -> Void)?
@@ -60,14 +61,15 @@ final class UIKitDuoFoldCapabilityProvider: DuoFoldCapabilityProvider {
   }
 
   func requestSnapshot(_ completion: @escaping (DuoFoldSnapshot) -> Void) {
-    if hasReceivedUpdate {
-      completion(lastSnapshot)
-      return
-    }
     guard let controller = viewController,
           controller.isViewLoaded,
-          controller.view != nil else {
+          controller.view != nil,
+          isViewInActiveScene else {
       completion(.unsupported)
+      return
+    }
+    if hasReceivedUpdate {
+      completion(lastSnapshot)
       return
     }
     pendingRequests.append(completion)
@@ -75,16 +77,39 @@ final class UIKitDuoFoldCapabilityProvider: DuoFoldCapabilityProvider {
       let requests = pendingRequests
       pendingRequests.removeAll()
       for request in requests { request(.unsupported) }
+      return
+    }
+    if snapshotTimeout == nil {
+      // UIKit may not deliver a hinge update while the view is transitioning.
+      // A point-in-time method call must still complete with unknown data.
+      let timeout = DispatchWorkItem { [weak self] in
+        guard let self else { return }
+        self.snapshotTimeout = nil
+        let requests = self.pendingRequests
+        self.pendingRequests.removeAll()
+        for request in requests { request(.unsupported) }
+        if self.hingeSink == nil && self.postureSink == nil {
+          self.removeInteraction()
+        }
+      }
+      snapshotTimeout = timeout
+      DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: timeout)
     }
   }
 
   func setHingeSink(_ sink: FlutterEventSink?) {
     hingeSink = sink
+    if let sink, hasReceivedUpdate, lastSnapshot.hasVerifiedHinge {
+      sink(lastSnapshot.hingeAngleRadians)
+    }
     updateObservation()
   }
 
   func setPostureSink(_ sink: FlutterEventSink?) {
     postureSink = sink
+    if let sink, hasReceivedUpdate, lastSnapshot.hasVerifiedHinge {
+      sink(lastSnapshot.posture)
+    }
     updateObservation()
   }
 
@@ -101,6 +126,8 @@ final class UIKitDuoFoldCapabilityProvider: DuoFoldCapabilityProvider {
   }
 
   func dispose() {
+    snapshotTimeout?.cancel()
+    snapshotTimeout = nil
     let requests = pendingRequests
     pendingRequests.removeAll()
     for request in requests { request(.unsupported) }
@@ -126,6 +153,7 @@ final class UIKitDuoFoldCapabilityProvider: DuoFoldCapabilityProvider {
     lifecycleObservers = [UIApplication.didBecomeActiveNotification, UIScene.didActivateNotification].map { name in
       center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
         guard let self, self.isViewInActiveScene, let interaction = self.interaction else { return }
+        self.hasReceivedUpdate = false
         interaction.isEnabled = false
         interaction.isEnabled = true
       }
@@ -152,6 +180,8 @@ final class UIKitDuoFoldCapabilityProvider: DuoFoldCapabilityProvider {
     lastSnapshot = snapshot
     hasReceivedUpdate = true
     stateChangeHandler?()
+    snapshotTimeout?.cancel()
+    snapshotTimeout = nil
     let requests = pendingRequests
     pendingRequests.removeAll()
     for request in requests { request(snapshot) }
@@ -177,6 +207,8 @@ final class UIKitDuoFoldCapabilityProvider: DuoFoldCapabilityProvider {
   }
 
   private func removeInteraction() {
+    snapshotTimeout?.cancel()
+    snapshotTimeout = nil
     for observer in lifecycleObservers { NotificationCenter.default.removeObserver(observer) }
     lifecycleObservers.removeAll()
     if let interaction,

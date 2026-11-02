@@ -38,7 +38,7 @@ abstract final class DuoModelParser {
     throw FormatException('Expected $name to be a string.');
   }
 
-  /// Reads an ISO-8601 timestamp, defaulting to the current time if absent.
+  /// Reads a required ISO-8601 timestamp.
   static DateTime dateTime(Object? value, String name) {
     if (value == null) throw FormatException('Expected $name timestamp.');
     if (value is DateTime) return value;

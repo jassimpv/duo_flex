@@ -21,6 +21,8 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
   DuoDisplayInfo? _display;
   DuoCapabilities? _capabilities;
   Object? _error;
+  bool _refreshingCapabilities = false;
+  bool _capabilityRefreshPending = false;
   StreamSubscription<DuoScreenInfo>? _screenSubscription;
   StreamSubscription<DuoDisplayInfo>? _displaySubscription;
   StreamSubscription<double?>? _hingeSubscription;
@@ -55,6 +57,7 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
           _display = value;
           _appendEvent('Display snapshot ${value.width} × ${value.height}');
         });
+        unawaited(_refreshFoldCapabilities());
       },
       onError: (Object error) {
         _recordEvent('Display stream error: $error');
@@ -81,8 +84,51 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
         _listenToFoldUpdates(capabilities);
         await _loadNativeFoldSnapshot(capabilities);
       }
+      unawaited(_refreshFoldCapabilities());
     } catch (error) {
       if (mounted) setState(() => _error = error);
+    }
+  }
+
+  Future<void> _refreshFoldCapabilities() async {
+    if (_capabilities == null) return;
+    if (_refreshingCapabilities) {
+      _capabilityRefreshPending = true;
+      return;
+    }
+    _refreshingCapabilities = true;
+    try {
+      final capabilities = await DuoFlex.getCapabilities();
+      if (!mounted || capabilities == _capabilities) return;
+      if (!capabilities.supportsHingeAngle) {
+        await _hingeSubscription?.cancel();
+        _hingeSubscription = null;
+        _hingeEventRevision++;
+        _hingeAngleRadians = null;
+      }
+      if (!capabilities.supportsFoldPosture) {
+        await _postureSubscription?.cancel();
+        _postureSubscription = null;
+        _postureEventRevision++;
+        _posture = DuoFoldPosture.unknown;
+      }
+      if (!mounted) return;
+      setState(() {
+        _capabilities = capabilities;
+        _foldStreamError = null;
+      });
+      _listenToFoldUpdates(capabilities);
+      await _loadNativeFoldSnapshot(capabilities);
+      final device = await DuoFlex.getDeviceInfo();
+      if (mounted) setState(() => _device = device);
+    } catch (error) {
+      _recordEvent('Capability refresh unavailable: $error');
+    } finally {
+      _refreshingCapabilities = false;
+      if (mounted && _capabilityRefreshPending) {
+        _capabilityRefreshPending = false;
+        unawaited(_refreshFoldCapabilities());
+      }
     }
   }
 
@@ -257,6 +303,15 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
           24,
         ),
         children: [
+          Text(
+            'See your layout adapt',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Resize the window to watch the layout change, or explore the previews below.',
+          ),
+          const SizedBox(height: 16),
           _ViewportSummary(
             constraints: constraints,
             safeArea: MediaQuery.paddingOf(context),
@@ -271,6 +326,14 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
             ),
           ),
           const SizedBox(height: 12),
+          _sectionHeading('What is the device reporting?'),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              'Window width chooses the layout. Physical fold readings are a separate signal.',
+            ),
+          ),
+          const SizedBox(height: 8),
           DuoFoldBuilder(
             builder: (context, state, capabilities) => _NativeFoldStatusCard(
               posture: capabilities.supportsFoldPosture
@@ -291,20 +354,30 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
           ),
           const SizedBox(height: 8),
           DuoFoldAwareLayout(
+            closedLayout: const _FoldAwareSample(
+              icon: Icons.smartphone_rounded,
+              title: 'Closed posture reported',
+              detail: 'The native API reports closed. Window size is still measured independently.',
+            ),
+            bookLayout: const _FoldAwareSample(
+              icon: Icons.menu_book_rounded,
+              title: 'Book posture reported',
+              detail: 'A vertical half-open fold is reported. An app could show reading content on each side.',
+            ),
             defaultLayout: const _FoldAwareSample(
               icon: Icons.dashboard_outlined,
-              title: 'Default responsive content',
-              detail: 'Used when physical posture is unknown or unsupported.',
+              title: 'Standard layout',
+              detail: 'No special posture layout selected. Content still adapts to its available width.',
             ),
             tabletopLayout: const _FoldAwareSample(
               icon: Icons.table_restaurant_outlined,
-              title: 'Tabletop content',
-              detail: 'Shown when native posture reports tabletop.',
+              title: 'Tabletop layout selected',
+              detail: 'The device reports a horizontal half-open fold. An app could place controls on the lower half.',
             ),
             fullyOpenLayout: const _FoldAwareSample(
               icon: Icons.open_in_full_rounded,
-              title: 'Fully open content',
-              detail: 'Shown when native posture reports fully open.',
+              title: 'Fully open layout selected',
+              detail: 'The device reports fully open. Available width still decides how many columns fit.',
             ),
           ),
         ],
@@ -367,14 +440,27 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
   Widget _metricGrid(List<_MetricData> metrics) => LayoutBuilder(
     builder: (context, constraints) {
       final columns = constraints.maxWidth >= 620 ? 4 : 2;
-      return GridView.count(
-        crossAxisCount: columns,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-        childAspectRatio: columns == 4 ? 1.45 : 1.55,
-        children: [for (final metric in metrics) _metricCard(metric)],
+      return Column(
+        children: [
+          for (var start = 0; start < metrics.length; start += columns) ...[
+            if (start > 0) const SizedBox(height: 8),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var offset = 0; offset < columns; offset++) ...[
+                    if (offset > 0) const SizedBox(width: 8),
+                    Expanded(
+                      child: start + offset < metrics.length
+                          ? _metricCard(metrics[start + offset])
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
       );
     },
   );
@@ -385,15 +471,18 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             metric.icon,
             size: 19,
             color: Theme.of(context).colorScheme.primary,
           ),
+          const SizedBox(height: 8),
           Text(metric.label, style: Theme.of(context).textTheme.labelSmall),
+          const SizedBox(height: 4),
           Text(metric.value, style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 4),
           Text(metric.detail, style: Theme.of(context).textTheme.labelSmall),
         ],
       ),
@@ -630,8 +719,9 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
     final foldRegion = _display?.regions
         .where(
           (region) =>
-              region.type == DuoDisplayRegionType.hingeExclusion ||
-              region.type == DuoDisplayRegionType.reservedDivision,
+              region.isActive &&
+              (region.type == DuoDisplayRegionType.hingeExclusion ||
+                  region.type == DuoDisplayRegionType.reservedDivision),
         )
         .firstOrNull;
     // final windowRegion = _display?.regions
@@ -685,6 +775,7 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
           setState(() {
             _hingeEventRevision++;
             _hingeAngleRadians = value;
+            _foldStreamError = null;
             _appendEvent('Native hinge update: ${value ?? 'unavailable'} rad');
           });
         },
@@ -705,6 +796,7 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
           setState(() {
             _postureEventRevision++;
             _posture = value;
+            _foldStreamError = null;
             _appendEvent('Native posture update: ${value.name}');
           });
         },
@@ -768,56 +860,148 @@ class _ViewportSummary extends StatelessWidget {
   final EdgeInsets viewInsets;
 
   String _extent(double value) =>
-      value.isFinite ? value.toStringAsFixed(1) : 'unbounded';
+      value.isFinite ? value.toStringAsFixed(0) : 'Unbounded';
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        'Flutter viewport: ${_extent(constraints.maxWidth)} × ${_extent(constraints.maxHeight)} logical pixels',
+  Widget build(BuildContext context) => Card(
+    margin: EdgeInsets.zero,
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.aspect_ratio_rounded),
+              SizedBox(width: 8),
+              Text('Available window space'),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '${_extent(constraints.maxWidth)} × ${_extent(constraints.maxHeight)}',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          const Text('Logical pixels · updates as the window changes'),
+          const SizedBox(height: 8),
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: const Text('View measurements'),
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Safe area · top / bottom'),
+                subtitle: Text(
+                  '${safeArea.top.toStringAsFixed(0)} / ${safeArea.bottom.toStringAsFixed(0)} logical pixels',
+                ),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Keyboard obstruction'),
+                subtitle: Text(
+                  viewInsets.bottom > 0
+                      ? '${viewInsets.bottom.toStringAsFixed(0)} logical pixels at the bottom'
+                      : 'No bottom obstruction reported',
+                ),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Pixel density'),
+                subtitle: Text(
+                  '${MediaQuery.devicePixelRatioOf(context).toStringAsFixed(1)} physical pixels per logical pixel',
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
-      const SizedBox(height: 3),
-      Text(
-        'Orientation: ${constraints.maxWidth > constraints.maxHeight ? 'landscape' : 'portrait'}',
-      ),
-      const SizedBox(height: 3),
-      Text(
-        'Pixel ratio: ${MediaQuery.devicePixelRatioOf(context).toStringAsFixed(1)}',
-      ),
-      const SizedBox(height: 3),
-      Text(
-        'Safe padding T/B/L/R: ${safeArea.top.toStringAsFixed(1)}/${safeArea.bottom.toStringAsFixed(1)}/${safeArea.left.toStringAsFixed(1)}/${safeArea.right.toStringAsFixed(1)}',
-      ),
-      const SizedBox(height: 3),
-      Text(
-        'Keyboard/view insets T/B/L/R: ${viewInsets.top.toStringAsFixed(1)}/${viewInsets.bottom.toStringAsFixed(1)}/${viewInsets.left.toStringAsFixed(1)}/${viewInsets.right.toStringAsFixed(1)}',
-      ),
-    ],
+    ),
   );
 }
 
-class _ResponsiveLayoutCard extends StatelessWidget {
+class _ResponsiveLayoutCard extends StatefulWidget {
   const _ResponsiveLayoutCard({required this.layout});
-
   final DuoLayoutInfo layout;
 
   @override
+  State<_ResponsiveLayoutCard> createState() => _ResponsiveLayoutCardState();
+}
+
+class _ResponsiveLayoutCardState extends State<_ResponsiveLayoutCard> {
+  DuoLayoutSize? _preview;
+
+  @override
   Widget build(BuildContext context) {
-    final title = switch (layout.size) {
-      DuoLayoutSize.compact => 'Compact · stacked content',
-      DuoLayoutSize.medium => 'Medium · two-column content',
-      DuoLayoutSize.expanded => 'Expanded · master and detail',
+    final selected = _preview ?? widget.layout.size;
+    final description = switch (selected) {
+      DuoLayoutSize.compact =>
+        'One column keeps content easy to read in a narrow space.',
+      DuoLayoutSize.medium =>
+        'A navigation rail makes room for a list and its details.',
+      DuoLayoutSize.expanded =>
+        'Persistent navigation, a list, and details can sit side by side.',
     };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Current responsive size: ${layout.size.name}'),
-        const SizedBox(height: 8),
-        Text(title),
-        const SizedBox(height: 10),
-        _AdaptiveLayoutContent(layout: layout),
-      ],
+    final range = switch (selected) {
+      DuoLayoutSize.compact => 'Below 600 logical pixels',
+      DuoLayoutSize.medium => '600–839 logical pixels',
+      DuoLayoutSize.expanded => '840 logical pixels and above',
+    };
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Layout playground',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Live content width: ${widget.layout.width.toStringAsFixed(0)} px · ${widget.layout.size.name}',
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                ChoiceChip(
+                  label: const Text('Live'),
+                  selected: _preview == null,
+                  onSelected: (_) => setState(() => _preview = null),
+                ),
+                for (final size in DuoLayoutSize.values)
+                  ChoiceChip(
+                    label: Text(switch (size) {
+                      DuoLayoutSize.compact => 'Compact',
+                      DuoLayoutSize.medium => 'Medium',
+                      DuoLayoutSize.expanded => 'Expanded',
+                    }),
+                    selected: _preview == size,
+                    onSelected: (_) => setState(() => _preview = size),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _preview == null
+                  ? 'Following the available width'
+                  : 'Illustration only · your window has not changed',
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
+            const SizedBox(height: 12),
+            _AdaptiveLayoutContent(size: selected),
+            const SizedBox(height: 12),
+            Text(description),
+            const SizedBox(height: 6),
+            Text(
+              'Default breakpoint: $range',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -840,13 +1024,22 @@ class _NativeFoldStatusCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Physical fold state: $posture'),
+          const Text(
+            'Live hardware readings',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 10),
+          Text('Posture: $posture'),
           const SizedBox(height: 4),
-          Text('Native hinge angle: $angle'),
+          Text('Hinge angle: $angle'),
+          const SizedBox(height: 8),
+          const Text(
+            'Unavailable means the platform has not supplied a reading. These values are never guessed from window width.',
+          ),
           if (error != null) ...[
             const SizedBox(height: 4),
             Text(
-              error!,
+              'Fold readings could not be refreshed. The responsive layout still works.',
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ],
@@ -969,72 +1162,53 @@ class _InsetValue extends StatelessWidget {
 }
 
 class _AdaptiveLayoutContent extends StatelessWidget {
-  const _AdaptiveLayoutContent({required this.layout});
-
-  final DuoLayoutInfo layout;
+  const _AdaptiveLayoutContent({required this.size});
+  final DuoLayoutSize size;
 
   @override
   Widget build(BuildContext context) {
-    if (layout.isCompact) {
-      return const Column(
-        children: [
-          _AdaptivePanelCard(
-            title: 'Navigation',
-            color: Color(0xFFE8EAF6),
-            height: 68,
-          ),
-          SizedBox(height: 8),
-          _AdaptivePanelCard(
-            title: 'Primary content',
-            color: Color(0xFFE3F2FD),
-            height: 88,
-          ),
-        ],
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (layout.isExpanded)
-              const SizedBox(
-                width: 120,
-                child: _AdaptivePanelCard(
-                  title: 'Persistent navigation',
-                  color: Color(0xFFE8EAF6),
-                  height: 92,
-                ),
-              ),
-            if (layout.isMedium)
-              const SizedBox(
-                width: 76,
-                child: _AdaptivePanelCard(
-                  title: 'Rail',
-                  color: Color(0xFFE8EAF6),
-                  height: 92,
-                ),
-              ),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: _AdaptivePanelCard(
-                title: 'Master list',
-                color: Color(0xFFE3F2FD),
-                height: 92,
-              ),
+    final colors = Theme.of(context).colorScheme;
+    final navigation = _AdaptivePanelCard(
+      title: size == DuoLayoutSize.medium ? 'Rail' : 'Menu',
+      icon: Icons.menu_rounded,
+      color: colors.primaryContainer,
+    );
+    final content = _AdaptivePanelCard(
+      title: 'List',
+      icon: Icons.view_list_rounded,
+      color: colors.secondaryContainer,
+    );
+    final details = _AdaptivePanelCard(
+      title: 'Details',
+      icon: Icons.article_outlined,
+      color: colors.tertiaryContainer,
+    );
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: colors.outlineVariant),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: size == DuoLayoutSize.compact
+          ? Column(
+              children: [
+                navigation,
+                const SizedBox(height: 8),
+                content,
+                const SizedBox(height: 8),
+                details,
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: navigation),
+                const SizedBox(width: 6),
+                Expanded(flex: 2, child: content),
+                const SizedBox(width: 6),
+                Expanded(flex: 2, child: details),
+              ],
             ),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: _AdaptivePanelCard(
-                title: 'Detail content',
-                color: Color(0xFFE0F2F1),
-                height: 92,
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }
@@ -1042,24 +1216,32 @@ class _AdaptiveLayoutContent extends StatelessWidget {
 class _AdaptivePanelCard extends StatelessWidget {
   const _AdaptivePanelCard({
     required this.title,
+    required this.icon,
     required this.color,
-    required this.height,
   });
-
   final String title;
+  final IconData icon;
   final Color color;
-  final double height;
 
   @override
-  Widget build(BuildContext context) => Card(
-    color: color,
-    child: SizedBox(
-      height: height,
-      width: double.infinity,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Center(child: Text(title, textAlign: TextAlign.center)),
-      ),
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 16),
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 22),
+        const SizedBox(height: 6),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.labelMedium,
+        ),
+      ],
     ),
   );
 }

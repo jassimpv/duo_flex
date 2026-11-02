@@ -2,7 +2,6 @@ package com.duoflex.duo_flex
 
 import android.app.Activity
 import android.content.Context
-import android.content.res.Configuration
 import android.graphics.Rect
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -10,6 +9,9 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
 import android.view.View
+import android.view.ViewTreeObserver
+import android.view.ViewGroup
+import io.flutter.embedding.android.FlutterView
 import android.view.WindowInsets
 import androidx.window.java.layout.WindowInfoTrackerCallbackAdapter
 import androidx.window.layout.FoldingFeature
@@ -19,6 +21,7 @@ import androidx.core.util.Consumer
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -32,6 +35,7 @@ class DuoFlexPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAw
     private var hingeChannel: EventChannel? = null
     private var postureChannel: EventChannel? = null
     private var activity: Activity? = null
+    private var messenger: BinaryMessenger? = null
     private var windowTracker: WindowInfoTrackerCallbackAdapter? = null
     private var windowLayoutListener: Consumer<WindowLayoutInfo>? = null
     private var latestFoldingFeature: FoldingFeature? = null
@@ -40,15 +44,19 @@ class DuoFlexPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAw
     private var displaySink: EventChannel.EventSink? = null
     private var hingeSink: EventChannel.EventSink? = null
     private var postureSink: EventChannel.EventSink? = null
-    private var screenObserver: View.OnLayoutChangeListener? = null
+    private var screenObserver: ViewTreeObserver.OnGlobalLayoutListener? = null
+    private var observedDecorView: View? = null
     private var sensorManager: SensorManager? = null
     private var hingeSensor: Sensor? = null
     private var hingeSensorListener: SensorEventListener? = null
     private var lastHingeAngleRadians: Double? = null
     private var sensorStarted = false
+    private var lastScreenInfo: Map<String, Any>? = null
+    private var lastDisplayInfo: Map<String, Any?>? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         appContext = binding.applicationContext
+        messenger = binding.binaryMessenger
         sensorManager = appContext.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
         hingeSensor = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             sensorManager?.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE)
@@ -56,10 +64,10 @@ class DuoFlexPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAw
         methodChannel = MethodChannel(binding.binaryMessenger, "duo_flex/methods")
         methodChannel.setMethodCallHandler(this)
         screenChannel = EventChannel(binding.binaryMessenger, "duo_flex/screen_info").also {
-            it.setStreamHandler(streamHandler({ screenSink = it; emitScreen() }, { screenSink = null }))
+            it.setStreamHandler(streamHandler({ screenSink = it; lastScreenInfo = null; emitScreen() }, { screenSink = null }))
         }
         displayChannel = EventChannel(binding.binaryMessenger, "duo_flex/display_changes").also {
-            it.setStreamHandler(streamHandler({ displaySink = it; emitDisplay() }, { displaySink = null }))
+            it.setStreamHandler(streamHandler({ displaySink = it; lastDisplayInfo = null; emitDisplay() }, { displaySink = null }))
         }
         hingeChannel = EventChannel(binding.binaryMessenger, "duo_flex/hinge_angle").also {
             it.setStreamHandler(streamHandler({
@@ -117,10 +125,8 @@ class DuoFlexPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAw
     )
 
     private fun screenInfo(): Map<String, Any> {
-        val view = activity?.window?.decorView
+        val view = findFlutterView(activity?.window?.decorView) ?: activity?.window?.decorView
         val density = appContext.resources.displayMetrics.density.coerceAtLeast(0.1f)
-        val bounds = Rect()
-        if (view != null) view.getWindowVisibleDisplayFrame(bounds)
         val width = if (view != null && view.width > 0) view.width else appContext.resources.displayMetrics.widthPixels
         val height = if (view != null && view.height > 0) view.height else appContext.resources.displayMetrics.heightPixels
         val insets = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && view != null) view.rootWindowInsets else null
@@ -136,27 +142,32 @@ class DuoFlexPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAw
             top = safe.top
             right = safe.right
             bottom = safe.bottom
-        } else if (view != null && view.width > 0 && view.height > 0) {
-            left = maxOf(bounds.left, 0)
-            top = maxOf(bounds.top, 0)
-            right = maxOf(width - bounds.right, 0)
-            bottom = maxOf(height - bounds.bottom, 0)
+        } else if (insets != null) {
+            // Stable insets exclude transient IME occlusion on older Android.
+            val cutout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) insets.displayCutout else null
+            left = maxOf(insets.stableInsetLeft, cutout?.safeInsetLeft ?: 0)
+            top = maxOf(insets.stableInsetTop, cutout?.safeInsetTop ?: 0)
+            right = maxOf(insets.stableInsetRight, cutout?.safeInsetRight ?: 0)
+            bottom = maxOf(insets.stableInsetBottom, cutout?.safeInsetBottom ?: 0)
         } else {
             left = 0
             top = 0
             right = 0
             bottom = 0
         }
-        val orientation = when (appContext.resources.configuration.orientation) {
-            Configuration.ORIENTATION_LANDSCAPE -> "landscape"
-            Configuration.ORIENTATION_PORTRAIT -> "portrait"
-            else -> "unknown"
-        }
+        val orientation = if (width > height) "landscape" else "portrait"
+        val location = IntArray(2)
+        view?.getLocationInWindow(location)
+        val decor = activity?.window?.decorView
+        val localLeft = (left - location[0]).coerceIn(0, width)
+        val localTop = (top - location[1]).coerceIn(0, height)
+        val localRight = (right - ((decor?.width ?: width) - location[0] - width)).coerceIn(0, width)
+        val localBottom = (bottom - ((decor?.height ?: height) - location[1] - height)).coerceIn(0, height)
         return mapOf(
             "width" to width / density.toDouble(), "height" to height / density.toDouble(),
             "devicePixelRatio" to density.toDouble(), "orientation" to orientation,
-            "safeArea" to mapOf("top" to top / density.toDouble(), "bottom" to bottom / density.toDouble(),
-                "left" to left / density.toDouble(), "right" to right / density.toDouble()),
+            "safeArea" to mapOf("top" to localTop / density.toDouble(), "bottom" to localBottom / density.toDouble(),
+                "left" to localLeft / density.toDouble(), "right" to localRight / density.toDouble()),
         )
     }
 
@@ -171,24 +182,32 @@ class DuoFlexPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAw
     }
 
     private fun displayRegions(): List<Map<String, Any>> {
-        val screen = screenInfo()
-        val density = appContext.resources.displayMetrics.density.coerceAtLeast(0.1f)
-        val view = activity?.window?.decorView
-        val screenX = if (view != null && view.width > 0) view.left / density.toDouble() else 0.0
-        val screenY = if (view != null && view.height > 0) view.top / density.toDouble() else 0.0
-        val regions = mutableListOf(mapOf(
-            "id" to "application-window", "x" to screenX, "y" to screenY,
-            "width" to screen.getValue("width") as Double,
-            "height" to screen.getValue("height") as Double,
-            "isActive" to (activity != null), "type" to "applicationWindow",
+        val view = findFlutterView(activity?.window?.decorView) ?: return emptyList()
+        val density = view.resources.displayMetrics.density.coerceAtLeast(0.1f).toDouble()
+        val location = IntArray(2)
+        view.getLocationInWindow(location)
+        val regions = mutableListOf(mapOf<String, Any>(
+            "id" to "application-window", "x" to 0.0, "y" to 0.0,
+            "width" to view.width / density, "height" to view.height / density,
+            "isActive" to true, "type" to "applicationWindow",
         ))
         val feature = latestFoldingFeature
         if (feature != null) {
-            val bounds = feature.bounds
+            val bounds = Rect(feature.bounds)
+            bounds.offset(-location[0], -location[1])
+            // Keep zero-width/height separating folds; Rect.intersect drops them.
+            if (bounds.right < 0 || bounds.bottom < 0 ||
+                bounds.left > view.width || bounds.top > view.height) return regions
+            bounds.left = bounds.left.coerceIn(0, view.width)
+            bounds.right = bounds.right.coerceIn(0, view.width)
+            bounds.top = bounds.top.coerceIn(0, view.height)
+            bounds.bottom = bounds.bottom.coerceIn(0, view.height)
             regions.add(mapOf(
-                "id" to "folding-feature", "x" to (bounds.left - (view?.left ?: 0)) / density.toDouble(),
-                "y" to (bounds.top - (view?.top ?: 0)) / density.toDouble(), "width" to bounds.width() / density.toDouble(),
-                "height" to bounds.height() / density.toDouble(), "isActive" to feature.isSeparating,
+                "id" to "folding-feature", "x" to bounds.left / density,
+                "y" to bounds.top / density, "width" to bounds.width() / density,
+                "height" to bounds.height() / density,
+                "isActive" to (feature.isSeparating ||
+                    feature.occlusionType == FoldingFeature.OcclusionType.FULL),
                 "type" to when {
                     feature.occlusionType == FoldingFeature.OcclusionType.FULL -> "hingeExclusion"
                     feature.isSeparating -> "reservedDivision"
@@ -197,6 +216,17 @@ class DuoFlexPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAw
             ))
         }
         return regions
+    }
+
+    private fun findFlutterView(view: View?): FlutterView? {
+        if (view is FlutterView &&
+            view.attachedFlutterEngine?.dartExecutor?.binaryMessenger === messenger) return view
+        if (view is ViewGroup) {
+            for (index in 0 until view.childCount) {
+                findFlutterView(view.getChildAt(index))?.let { return it }
+            }
+        }
+        return null
     }
 
     private fun foldPosture(): String {
@@ -212,8 +242,20 @@ class DuoFlexPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAw
         }
     }
 
-    private fun emitScreen() { screenSink?.success(screenInfo()) }
-    private fun emitDisplay() { displaySink?.success(displayInfo()) }
+    private fun emitScreen() {
+        val sink = screenSink ?: return
+        val snapshot = screenInfo()
+        if (snapshot == lastScreenInfo) return
+        lastScreenInfo = snapshot
+        sink.success(snapshot)
+    }
+    private fun emitDisplay() {
+        val sink = displaySink ?: return
+        val snapshot = displayInfo()
+        if (snapshot == lastDisplayInfo) return
+        lastDisplayInfo = snapshot
+        sink.success(snapshot)
+    }
     private fun emitPosture() { postureSink?.success(foldPosture()) }
 
     private fun startHingeSensor() {
@@ -264,16 +306,20 @@ class DuoFlexPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAw
             if (screenSink != null) emitScreen()
             if (displaySink != null) emitDisplay()
         }
-        val listener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+        val listener = ViewTreeObserver.OnGlobalLayoutListener {
             emitScreen(); emitDisplay()
         }
         screenObserver = listener
-        view.addOnLayoutChangeListener(listener)
+        observedDecorView = view
+        view.viewTreeObserver.addOnGlobalLayoutListener(listener)
     }
 
     private fun stopWindowTracking() {
         val listener = screenObserver
-        activity?.window?.decorView?.let { if (listener != null) it.removeOnLayoutChangeListener(listener) }
+        observedDecorView?.viewTreeObserver?.let {
+            if (listener != null && it.isAlive) it.removeOnGlobalLayoutListener(listener)
+        }
+        observedDecorView = null
         screenObserver = null
         val layoutListener = windowLayoutListener
         if (layoutListener != null) windowTracker?.removeWindowLayoutInfoListener(layoutListener)
@@ -296,6 +342,15 @@ class DuoFlexPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAw
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         stopWindowTracking()
+        stopHingeSensor()
+        screenSink = null
+        displaySink = null
+        hingeSink = null
+        postureSink = null
+        activity = null
+        latestFoldingFeature = null
+        lastHingeAngleRadians = null
+        messenger = null
         methodChannel.setMethodCallHandler(null)
         screenChannel?.setStreamHandler(null); displayChannel?.setStreamHandler(null)
         hingeChannel?.setStreamHandler(null); postureChannel?.setStreamHandler(null)

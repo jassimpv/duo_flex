@@ -21,6 +21,9 @@ class DuoFoldAwareLayout extends StatelessWidget {
     this.fullyOpenLayout,
     this.tabletopLayout,
     this.tentLayout,
+    this.bookLayout,
+    this.continuousLayout,
+    this.foldedLayout,
     this.loadingBuilder,
   });
 
@@ -44,6 +47,15 @@ class DuoFoldAwareLayout extends StatelessWidget {
 
   /// Optional layout for a native `tent` status, when available.
   final Widget? tentLayout;
+
+  /// Optional layout for Android's vertical half-open posture.
+  final Widget? bookLayout;
+
+  /// Optional layout for the browser's continuous posture.
+  final Widget? continuousLayout;
+
+  /// Optional layout for the browser's folded posture.
+  final Widget? foldedLayout;
 
   /// Optional loading UI; the default layout is used while loading.
   final WidgetBuilder? loadingBuilder;
@@ -72,10 +84,10 @@ class DuoFoldAwareLayout extends StatelessWidget {
         halfOpenLayout ?? partiallyOpenLayout ?? defaultLayout,
       DuoFoldPosture.fullyOpen => fullyOpenLayout ?? defaultLayout,
       DuoFoldPosture.tabletop => tabletopLayout ?? defaultLayout,
-      DuoFoldPosture.book => defaultLayout,
+      DuoFoldPosture.book => bookLayout ?? defaultLayout,
       DuoFoldPosture.tent => tentLayout ?? defaultLayout,
-      DuoFoldPosture.continuous => defaultLayout,
-      DuoFoldPosture.folded => defaultLayout,
+      DuoFoldPosture.continuous => continuousLayout ?? defaultLayout,
+      DuoFoldPosture.folded => foldedLayout ?? defaultLayout,
       DuoFoldPosture.unknown => defaultLayout,
     };
   }

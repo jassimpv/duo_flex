@@ -11,7 +11,10 @@ import '../models/duo_screen_layout_info.dart';
 /// reported as safe-area padding. None of these values describes a fold hinge.
 class DuoScreenBuilder extends StatelessWidget {
   /// Creates a local viewport builder.
-  const DuoScreenBuilder({super.key, required this.builder});
+  const DuoScreenBuilder({super.key, required this.builder, this.fallbackSize});
+
+  /// Size used for unbounded axes instead of the nearest MediaQuery size.
+  final Size? fallbackSize;
 
   /// Builds using current local viewport information.
   final Widget Function(BuildContext context, DuoScreenLayoutInfo screen)
@@ -25,12 +28,12 @@ class DuoScreenBuilder extends StatelessWidget {
         final width = _finiteExtent(
           constraints.maxWidth,
           constraints.minWidth,
-          media.size.width,
+          fallbackSize?.width ?? media.size.width,
         );
         final height = _finiteExtent(
           constraints.maxHeight,
           constraints.minHeight,
-          media.size.height,
+          fallbackSize?.height ?? media.size.height,
         );
         return builder(
           context,

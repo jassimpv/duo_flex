@@ -19,6 +19,7 @@ class DuoAdaptiveLayout extends StatelessWidget {
     this.medium,
     this.expanded,
     this.breakpoints = const DuoLayoutBreakpoints(),
+    this.fallbackSize,
   }) : builder = null;
 
   /// Creates a layout from the current local measurements.
@@ -26,6 +27,7 @@ class DuoAdaptiveLayout extends StatelessWidget {
     super.key,
     required this.builder,
     this.breakpoints = const DuoLayoutBreakpoints(),
+    this.fallbackSize,
   }) : compact = null,
        medium = null,
        expanded = null;
@@ -39,6 +41,10 @@ class DuoAdaptiveLayout extends StatelessWidget {
   /// Expanded child, falling back to [medium] and then [compact].
   final Widget? expanded;
 
+  /// Explicit size used for unbounded axes, for example inside a side pane.
+  /// Defaults to the nearest MediaQuery size.
+  final Size? fallbackSize;
+
   /// Width thresholds in logical pixels.
   final DuoLayoutBreakpoints breakpoints;
 
@@ -51,12 +57,12 @@ class DuoAdaptiveLayout extends StatelessWidget {
       final width = _finiteExtent(
         constraints.maxWidth,
         constraints.minWidth,
-        fallback: MediaQuery.sizeOf(context).width,
+        fallback: fallbackSize?.width ?? MediaQuery.sizeOf(context).width,
       );
       final height = _finiteExtent(
         constraints.maxHeight,
         constraints.minHeight,
-        fallback: MediaQuery.sizeOf(context).height,
+        fallback: fallbackSize?.height ?? MediaQuery.sizeOf(context).height,
       );
       final size = width >= breakpoints.expanded
           ? DuoLayoutSize.expanded
