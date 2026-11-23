@@ -9,11 +9,12 @@ import '../models/duo_display_region.dart';
 import '../models/duo_fold_posture.dart';
 import '../models/duo_model_parser.dart';
 import '../models/duo_screen_info.dart';
+import '../models/duo_size_class.dart';
 import 'duo_flex_platform.dart';
 
 /// Method and event channel implementation of [DuoFlexPlatform].
 class MethodChannelDuoFlex extends DuoFlexPlatform
-    implements DuoFlexDataPlatform {
+    implements DuoFlexDataPlatform, DuoFlexSizeClassPlatform {
   /// Method channel used for point-in-time API requests.
   final MethodChannel methodChannel = const MethodChannel('duo_flex/methods');
   static const EventChannel _hinge = EventChannel('duo_flex/hinge_angle');
@@ -89,6 +90,15 @@ class MethodChannelDuoFlex extends DuoFlexPlatform
     return _decode(
       () => DuoCapabilities.fromMap(_responseMap(value, 'getCapabilities')),
       'getCapabilities',
+    );
+  }
+
+  @override
+  Future<DuoSizeClassInfo> getSizeClasses() async {
+    final value = await _invoke('getSizeClasses');
+    return _decode(
+      () => DuoSizeClassInfo.fromMap(_responseMap(value, 'getSizeClasses')),
+      'getSizeClasses',
     );
   }
 

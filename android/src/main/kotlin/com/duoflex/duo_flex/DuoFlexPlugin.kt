@@ -95,6 +95,10 @@ class DuoFlexPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAw
             when (call.method) {
                 "getPlatformVersion" -> result.success("Android ${Build.VERSION.RELEASE}")
                 "getCapabilities" -> result.success(capabilities())
+                "getSizeClasses" -> result.success(mapOf(
+                    "horizontal" to "unspecified",
+                    "vertical" to "unspecified",
+                ))
                 "getDeviceInfo" -> result.success(mapOf(
                     "model" to Build.MODEL,
                     "systemName" to "Android",

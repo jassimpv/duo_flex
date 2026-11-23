@@ -104,6 +104,8 @@ public final class DuoFlexPlugin: NSObject, FlutterPlugin {
             "supportsSafeAreaInsets": self?.screenManager.hasActiveView ?? false,
           ])
         }
+      case "getSizeClasses":
+        result(try screenManager.sizeClasses())
       case "getDeviceInfo":
         foldManager.getDeviceFoldability { [weak self] isFoldable in
           guard let self else { return }

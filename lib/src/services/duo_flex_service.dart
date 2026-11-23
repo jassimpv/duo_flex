@@ -5,6 +5,7 @@ import '../models/duo_display_info.dart';
 import '../models/duo_display_region.dart';
 import '../models/duo_fold_posture.dart';
 import '../models/duo_screen_info.dart';
+import '../models/duo_size_class.dart';
 import '../platform/duo_flex_platform.dart';
 
 /// Thin application-facing delegation layer for DuoFlex platform data.
@@ -22,6 +23,13 @@ class DuoFlexService {
   Future<String?> getPlatformVersion() => _platform.getPlatformVersion();
 
   Future<DuoCapabilities> getCapabilities() => _dataPlatform.getCapabilities();
+
+  Future<DuoSizeClassInfo> getSizeClasses() {
+    final platform = _platform;
+    return platform is DuoFlexSizeClassPlatform
+        ? (platform as DuoFlexSizeClassPlatform).getSizeClasses()
+        : Future.value(DuoSizeClassInfo.unspecified);
+  }
 
   Future<DuoDeviceInfo> getDeviceInfo() => _dataPlatform.getDeviceInfo();
 

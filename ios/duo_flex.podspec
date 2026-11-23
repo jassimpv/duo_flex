@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'duo_flex'
-  s.version          = '0.1.0'
+  s.version          = '0.5.0'
   s.summary          = 'Native iOS display and fold data with adaptive Flutter layouts.'
   s.description      = <<-DESC
 Typed access to iOS device, application window, safe-area, display regions, and

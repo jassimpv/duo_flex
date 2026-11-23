@@ -6,6 +6,7 @@ import '../models/duo_display_info.dart';
 import '../models/duo_display_region.dart';
 import '../models/duo_fold_posture.dart';
 import '../models/duo_screen_info.dart';
+import '../models/duo_size_class.dart';
 import 'method_channel_duo_flex.dart';
 
 /// Exception indicating an API or stream is not implemented by the host.
@@ -53,4 +54,9 @@ abstract interface class DuoFlexDataPlatform implements DuoFlexPlatform {
   Stream<DuoFoldPosture> get foldPostureStream;
   Stream<DuoScreenInfo> get screenInfoStream;
   Stream<DuoDisplayInfo> get displayChangesStream;
+}
+
+/// Optional platform extension for UIKit size-class readings.
+abstract interface class DuoFlexSizeClassPlatform {
+  Future<DuoSizeClassInfo> getSizeClasses();
 }

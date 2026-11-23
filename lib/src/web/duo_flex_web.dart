@@ -11,11 +11,13 @@ import '../models/duo_display_region.dart';
 import '../models/duo_fold_posture.dart';
 import '../models/duo_safe_area.dart';
 import '../models/duo_screen_info.dart';
+import '../models/duo_size_class.dart';
 import '../platform/duo_flex_platform.dart';
 import 'device_posture_interop.dart' as posture_api;
 
 /// Browser implementation using viewport events and the Device Posture API.
-class DuoFlexWeb extends DuoFlexPlatform implements DuoFlexDataPlatform {
+class DuoFlexWeb extends DuoFlexPlatform
+    implements DuoFlexDataPlatform, DuoFlexSizeClassPlatform {
   DuoFlexWeb() {
     _screenListener = ((web.Event _) {
       _screenEvents.add(_screenSnapshot());
@@ -43,10 +45,7 @@ class DuoFlexWeb extends DuoFlexPlatform implements DuoFlexDataPlatform {
     );
     _postureEvents = StreamController<DuoFoldPosture>.broadcast(
       onListen: () {
-        posture_api.devicePosture?.addEventListener(
-          'change',
-          _postureListener,
-        );
+        posture_api.devicePosture?.addEventListener('change', _postureListener);
         _postureEvents.add(_reportedPosture());
       },
       onCancel: () => posture_api.devicePosture?.removeEventListener(
@@ -115,10 +114,12 @@ class DuoFlexWeb extends DuoFlexPlatform implements DuoFlexDataPlatform {
   );
 
   @override
-  Future<DuoDeviceInfo> getDeviceInfo() async => const DuoDeviceInfo(
-    systemName: 'Web',
-    isFoldable: null,
-  );
+  Future<DuoSizeClassInfo> getSizeClasses() async =>
+      DuoSizeClassInfo.unspecified;
+
+  @override
+  Future<DuoDeviceInfo> getDeviceInfo() async =>
+      const DuoDeviceInfo(systemName: 'Web', isFoldable: null);
 
   @override
   Future<DuoScreenInfo> getScreenInfo() async => _screenSnapshot();

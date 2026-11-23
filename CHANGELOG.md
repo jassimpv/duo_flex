@@ -1,3 +1,12 @@
+## 0.5.0
+
+* Add UIKit horizontal and vertical size-class readings.
+* Add `DuoFoldProvider` and `DuoMediaQuery` for selective widget rebuilds from
+  posture, hinge-angle, and capability changes.
+* Add an opt-in `MediaQuery.displayFeatures` bridge for native cutout and fold
+  regions, disabled by default.
+* Update the example app and pub.dev screenshots to demonstrate the new APIs.
+
 ## 0.4.0
 
 * Let example metric cards grow with their content to avoid overflow for long

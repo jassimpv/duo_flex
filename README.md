@@ -1,11 +1,25 @@
 # duo_flex
 
-`duo_flex` is a Flutter plugin for **iPhone Duo, foldable phones, and adaptive
-Flutter layouts**. It reads hinge angle, fold posture, display regions,
-application-window geometry, and safe-area data when the platform exposes
-them. Its responsive widgets also work on ordinary phones and other screen
-sizes. Unsupported fold data stays unknown or unavailable; DuoFlex never
-guesses hardware state from a device name, screen size, or angle.
+Build responsive Flutter UIs for **Samsung Galaxy Z Fold/Flip, iPhone Duo, and
+regular phones**. `duo_flex` gives you adaptive layout widgets on every Flutter
+platform, plus native fold posture, hinge, display-region, and window data
+where the device and OS expose it. Missing hardware data stays explicitly
+unknown; your app can still use the same responsive layout everywhere.
+
+```dart
+import 'package:duo_flex/duo_flex.dart';
+
+DuoAdaptiveLayout(
+  compact: const PhoneHomePage(),
+  medium: const TabletHomePage(),
+  expanded: const DesktopHomePage(),
+)
+```
+
+Use `DuoAdaptiveLayout` when you want to respond to available width. Use
+`DuoFoldAwareLayout` when you need a different UI for a physical fold posture.
+They can be composed so responsive layouts remain the fallback on devices
+without fold support.
 
 ## Install
 
@@ -15,17 +29,33 @@ Add `duo_flex` to your app:
 flutter pub add duo_flex
 ```
 
-The native implementations target iOS 15 and Android API 23 and later. On
-iPhone Duo, UIKit fold data requires iOS 27.1 or later and an active Flutter
-view that reports a hinge. Android fold posture and hinge bounds are reported
-when AndroidX Window detects a folding feature on Android 10 or later; hinge
-angle is read separately from `Sensor.TYPE_HINGE_ANGLE` on Android 11 or later
-when the device exposes it. The adaptive Flutter widgets work on all
-supported Flutter platforms.
+The native plugin targets iOS 15+ and Android API 23+. Fold readings require
+the relevant platform APIs and hardware: iPhone Duo hinge data is available
+with iOS 27.1+, and Android fold geometry is available when AndroidX Window
+reports a folding feature. Adaptive widgets work on all supported Flutter
+platforms, including ordinary phones. Requires Dart 3.13.2 and Flutter 3.47.2+.
 
-The package requires Dart 3.13.2 and Flutter 3.47.2 or later.
+## Get started with fold posture
 
-## Example
+Show a posture-specific screen when the platform reports one, and keep a
+normal adaptive layout as the safe fallback:
+
+```dart
+DuoFoldAwareLayout(
+  defaultLayout: DuoAdaptiveLayout(
+    compact: const PhoneHomePage(),
+    medium: const TabletHomePage(),
+    expanded: const DesktopHomePage(),
+  ),
+  bookLayout: const BookModePage(),
+  tabletopLayout: const FlexModePage(),
+)
+```
+
+The widget does not infer fold posture from screen size or device name. If
+posture is unsupported or unavailable, it shows `defaultLayout`.
+
+## Example app
 
 The example app shows native device and hinge readings alongside viewport and
 safe-area data on iOS and Android:
@@ -33,6 +63,11 @@ safe-area data on iOS and Android:
 | iOS | Android |
 | --- | --- |
 | ![DuoFlex dashboard on iOS](https://raw.githubusercontent.com/jassimpv/duo_flex/main/assets/duo_flex_device_dashboard.png) | ![DuoFlex dashboard on Android](https://raw.githubusercontent.com/jassimpv/duo_flex/main/assets/android.png) |
+
+The adaptive example also demonstrates UIKit size classes, `DuoMediaQuery`, and
+the opt-in display-feature bridge:
+
+![DuoFlex adaptive UI example](https://raw.githubusercontent.com/jassimpv/duo_flex/main/assets/duo_flex_adaptive_demo.png)
 
 ```dart
 import 'package:duo_flex/duo_flex.dart';
@@ -119,6 +154,10 @@ work on ordinary phones and all Flutter platforms. The default width thresholds
 are 600 logical pixels for medium and 840 for expanded; customize them for the
 needs of your app. They classify available layout width and never identify
 physical fold posture.
+
+On iOS, `DuoFlex.getSizeClasses()` also exposes UIKit's horizontal and vertical
+size classes. This captures system layout changes such as iPad multitasking;
+other platforms return `unspecified` and should use local constraints.
 
 ```dart
 DuoAdaptiveLayout(
@@ -212,6 +251,28 @@ capability information. The **Adaptive UI** tab demonstrates local viewport
 breakpoints and native fold-aware widget selection. The example displays native
 readings only; unsupported or unavailable values are shown explicitly instead
 of being replaced with simulated hardware data.
+
+For widget-tree access with selective rebuilds, wrap the app in
+`DuoFoldProvider` and read only the state you need:
+
+```dart
+DuoFoldProvider(
+  child: MaterialApp(
+    home: Builder(
+      builder: (context) => Text(
+        DuoMediaQuery.postureOf(context).name,
+      ),
+    ),
+  ),
+)
+```
+
+`DuoMediaQuery.postureOf` does not rebuild when only the hinge angle changes;
+use `hingeAngleOf` for angle-driven UI. To expose native camera and hinge
+regions to Flutter's `MediaQuery.displayFeatures`, add
+`DuoDisplayFeatureBridge` with `cutoutsOnly` or `full`. Its default is `none`;
+`full` can cause Flutter dialogs and menus to avoid the fold region, so choose
+it when that behavior is wanted.
 
 ## Platform support
 

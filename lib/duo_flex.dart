@@ -5,6 +5,7 @@ import 'src/models/duo_display_info.dart';
 import 'src/models/duo_display_region.dart';
 import 'src/models/duo_fold_posture.dart';
 import 'src/models/duo_screen_info.dart';
+import 'src/models/duo_size_class.dart';
 import 'src/platform/duo_flex_platform.dart' show DuoFlexPlatform;
 
 export 'src/models/duo_capabilities.dart';
@@ -20,14 +21,21 @@ export 'src/models/duo_layout_size.dart';
 export 'src/models/duo_safe_area.dart';
 export 'src/models/duo_screen_info.dart';
 export 'src/models/duo_screen_layout_info.dart';
+export 'src/models/duo_size_class.dart';
 export 'src/models/display_info.dart';
 export 'src/models/display_region.dart';
 export 'src/models/screen_dimensions.dart';
 export 'src/platform/duo_flex_platform.dart'
-    show DuoFlexPlatform, DuoFlexDataPlatform, DuoFlexUnsupportedException;
+    show
+        DuoFlexPlatform,
+        DuoFlexDataPlatform,
+        DuoFlexSizeClassPlatform,
+        DuoFlexUnsupportedException;
 export 'src/widgets/duo_adaptive_layout.dart';
+export 'src/widgets/duo_display_feature_bridge.dart';
 export 'src/widgets/duo_fold_aware_layout.dart';
 export 'src/widgets/duo_fold_builder.dart';
+export 'src/widgets/duo_fold_scope.dart';
 export 'src/widgets/duo_screen_builder.dart';
 
 /// Static public API for display data and platform-reported fold capabilities.
@@ -43,6 +51,7 @@ class DuoFlex {
   static final DuoFlexService _service = DuoFlexService();
   static Future<DuoCapabilities> getCapabilities() =>
       _service.getCapabilities();
+  static Future<DuoSizeClassInfo> getSizeClasses() => _service.getSizeClasses();
   static Future<DuoDeviceInfo> getDeviceInfo() => _service.getDeviceInfo();
   static Future<DuoScreenInfo?> getScreenInfo() => _service.getScreenInfo();
   static Future<DuoDisplayInfo?> getDisplayInfo() => _service.getDisplayInfo();

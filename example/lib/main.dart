@@ -33,10 +33,13 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
   int _postureEventRevision = 0;
   String? _foldStreamError;
   final List<String> _eventHistory = <String>[];
+  late final Future<DuoSizeClassInfo> _sizeClassesFuture;
+  DuoDisplayFeatureBridgeMode _bridgeMode = DuoDisplayFeatureBridgeMode.none;
 
   @override
   void initState() {
     super.initState();
+    _sizeClassesFuture = DuoFlex.getSizeClasses();
     _load();
     _screenSubscription = DuoFlex.screenInfoStream.listen(
       (value) {
@@ -200,46 +203,53 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5546A5)),
       scaffoldBackgroundColor: const Color(0xFFFCF8FF),
     ),
-    home: DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Row(
-            children: [
-              Icon(Icons.phonelink_rounded),
-              SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+    home: DuoFoldProvider(
+      child: DuoDisplayFeatureBridge(
+        mode: _bridgeMode,
+        child: DefaultTabController(
+          length: 2,
+          child: Scaffold(
+            appBar: AppBar(
+              title: const Row(
                 children: [
-                  Text('DuoFlex'),
-                  Text(
-                    'Native display monitor',
-                    style: TextStyle(fontSize: 12),
+                  Icon(Icons.phonelink_rounded),
+                  SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('DuoFlex'),
+                      Text(
+                        'Native display monitor',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
-          centerTitle: false,
-          toolbarHeight: 60,
-          bottom: const TabBar(
-            dividerColor: Colors.transparent,
-            indicatorSize: TabBarIndicatorSize.label,
-            labelPadding: EdgeInsets.symmetric(horizontal: 28),
-            tabs: [
-              Tab(
-                icon: Icon(Icons.phone_iphone_rounded, size: 20),
-                text: 'Device',
+              centerTitle: false,
+              toolbarHeight: 60,
+              bottom: const TabBar(
+                dividerColor: Colors.transparent,
+                indicatorSize: TabBarIndicatorSize.label,
+                labelPadding: EdgeInsets.symmetric(horizontal: 28),
+                tabs: [
+                  Tab(
+                    icon: Icon(Icons.phone_iphone_rounded, size: 20),
+                    text: 'Device',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.dashboard_customize_rounded, size: 20),
+                    text: 'Adaptive UI',
+                  ),
+                ],
               ),
-              Tab(
-                icon: Icon(Icons.dashboard_customize_rounded, size: 20),
-                text: 'Adaptive UI',
-              ),
-            ],
+            ),
+            body: TabBarView(
+              children: [_deviceDashboard(), _adaptiveDashboard()],
+            ),
           ),
         ),
-        body: TabBarView(children: [_deviceDashboard(), _adaptiveDashboard()]),
       ),
     ),
   );
@@ -312,6 +322,34 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
             'Resize the window to watch the layout change, or explore the previews below.',
           ),
           const SizedBox(height: 16),
+          FutureBuilder<DuoSizeClassInfo>(
+            future: _sizeClassesFuture,
+            builder: (context, snapshot) {
+              final classes = snapshot.data;
+              return Card(
+                child: ListTile(
+                  leading: const Icon(Icons.view_week_outlined),
+                  title: const Text('UIKit size classes'),
+                  subtitle: Text(
+                    'Horizontal: ${classes?.horizontal.name ?? 'loading'}  ·  '
+                    'Vertical: ${classes?.vertical.name ?? 'loading'}',
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          _displayFeatureBridgeCard(),
+          const SizedBox(height: 10),
+          Builder(
+            builder: (context) => _NativeFoldStatusCard(
+              posture: DuoMediaQuery.postureOf(context).name,
+              angle: DuoMediaQuery.hingeAngleOf(context) == null
+                  ? 'Angle unavailable'
+                  : '${(DuoMediaQuery.hingeAngleOf(context)! * 180 / math.pi).toStringAsFixed(1)}°',
+            ),
+          ),
+          const SizedBox(height: 10),
           _ViewportSummary(
             constraints: constraints,
             safeArea: MediaQuery.paddingOf(context),
@@ -332,25 +370,6 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
             child: Text(
               'Window width chooses the layout. Physical fold readings are a separate signal.',
             ),
-          ),
-          const SizedBox(height: 8),
-          DuoFoldBuilder(
-            builder: (context, state, capabilities) => _NativeFoldStatusCard(
-              posture: capabilities.supportsFoldPosture
-                  ? state.posture.name
-                  : 'Unsupported',
-              angle: capabilities.supportsHingeAngle && state.hingeAngle != null
-                  ? '${(state.hingeAngle! * 180 / math.pi).toStringAsFixed(1)}°'
-                  : 'Unavailable',
-            ),
-            errorBuilder: (context, error, state, capabilities) =>
-                _NativeFoldStatusCard(
-                  posture: capabilities.supportsFoldPosture
-                      ? state.posture.name
-                      : 'Unsupported',
-                  angle: 'Unavailable',
-                  error: error.toString(),
-                ),
           ),
           const SizedBox(height: 8),
           DuoFoldAwareLayout(
@@ -383,6 +402,38 @@ class _DuoFlexExampleAppState extends State<DuoFlexExampleApp> {
         ],
       );
     },
+  );
+
+  Widget _displayFeatureBridgeCard() => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'MediaQuery bridge',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Choose whether native cutout or fold regions are exposed to Flutter layouts.',
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            children: DuoDisplayFeatureBridgeMode.values
+                .map(
+                  (mode) => ChoiceChip(
+                    label: Text(mode.name),
+                    selected: _bridgeMode == mode,
+                    onSelected: (_) => setState(() => _bridgeMode = mode),
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    ),
   );
 
   Widget _sectionHeading(String title) => Padding(

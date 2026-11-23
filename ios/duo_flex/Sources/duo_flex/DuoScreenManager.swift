@@ -52,6 +52,26 @@ final class DuoScreenManager {
     return view.window != nil
   }
 
+  func sizeClasses() throws -> [String: String] {
+    guard let controller = viewController,
+          controller.isViewLoaded,
+          let view = controller.view else {
+      throw DuoFlexNativeError.viewUnavailable
+    }
+    let traits = view.traitCollection
+    func name(_ value: UIUserInterfaceSizeClass) -> String {
+      switch value {
+      case .compact: return "compact"
+      case .regular: return "regular"
+      default: return "unspecified"
+      }
+    }
+    return [
+      "horizontal": name(traits.horizontalSizeClass),
+      "vertical": name(traits.verticalSizeClass),
+    ]
+  }
+
   var isActiveScene: Bool {
     guard let controller = viewController,
           controller.isViewLoaded,
